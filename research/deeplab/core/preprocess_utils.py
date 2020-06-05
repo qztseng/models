@@ -379,7 +379,7 @@ def randomly_scale_image_and_label(image, label=None, scale=1.0):
       new_dim,
       align_corners=True), [0])
   if label is not None:
-    label = tf.image.resize(
+    label = tf.image.resize_images(
         label,
         new_dim,
         method=get_label_resize_method(label),

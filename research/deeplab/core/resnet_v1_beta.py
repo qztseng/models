@@ -139,7 +139,6 @@ def lite_bottleneck(inputs,
           stride=stride,
           activation_fn=None,
           scope='shortcut')
-
     residual = conv2d_ws.conv2d_same(
         inputs, depth, 3, 1, rate=rate * unit_rate, scope='conv1')
     with slim.arg_scope([conv2d_ws.conv2d], activation_fn=None):
@@ -258,7 +257,7 @@ def resnet_v1_beta(inputs,
         net = root_block_fn(net)
         net = slim.max_pool2d(net, 3, stride=2, padding='SAME', scope='pool1')
         net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
-
+        
         if global_pool:
           # Global average pooling.
           net = tf.reduce_mean(net, [1, 2], name='pool5', keepdims=True)
@@ -380,6 +379,7 @@ def resnet_v1_18(inputs,
           'block3', base_depth=256, num_units=2, stride=2),
       resnet_utils.Block('block4', lite_bottleneck, block4_args),
   ]
+
   return resnet_v1_beta(
       inputs,
       blocks=blocks,
@@ -459,6 +459,7 @@ def resnet_v1_18_beta(inputs,
           'block3', base_depth=256, num_units=2, stride=2),
       resnet_utils.Block('block4', lite_bottleneck, block4_args),
   ]
+
   return resnet_v1_beta(
       inputs,
       blocks=blocks,

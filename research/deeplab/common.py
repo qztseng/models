@@ -73,7 +73,7 @@ flags.DEFINE_boolean('aspp_with_separable_conv', True,
 
 # Defaults to None. Set multi_grid = [1, 2, 4] when using provided
 # 'resnet_v1_{50,101}_beta' checkpoints.
-flags.DEFINE_multi_integer('multi_grid', None,
+flags.DEFINE_multi_integer('multi_grid', [1, 2, 4],
                            'Employ a hierarchy of atrous rates for ResNet.')
 
 flags.DEFINE_float('depth_multiplier', 1.0,

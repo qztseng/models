@@ -26,15 +26,15 @@ from PIL import Image
 
 import tensorflow as tf
 
-FLAGS = tf.compat.v1.flags.FLAGS
+FLAGS = tf.flags.FLAGS
 
-tf.compat.v1.flags.DEFINE_string('original_gt_folder',
+tf.flags.DEFINE_string('original_gt_folder',
                                  './VOCdevkit/VOC2012/SegmentationClass',
                                  'Original ground truth annotations.')
 
-tf.compat.v1.flags.DEFINE_string('segmentation_format', 'png', 'Segmentation format.')
+tf.flags.DEFINE_string('segmentation_format', 'png', 'Segmentation format.')
 
-tf.compat.v1.flags.DEFINE_string('output_dir',
+tf.flags.DEFINE_string('output_dir',
                                  './VOCdevkit/VOC2012/SegmentationClassRaw',
                                  'folder to save modified ground truth annotations.')
 
@@ -59,14 +59,14 @@ def _save_annotation(annotation, filename):
     filename: Output filename.
   """
   pil_image = Image.fromarray(annotation.astype(dtype=np.uint8))
-  with tf.io.gfile.GFile(filename, mode='w') as f:
+  with tf.gfile.GFile(filename, mode='w') as f:
     pil_image.save(f, 'PNG')
 
 
 def main(unused_argv):
   # Create the output directory if not exists.
-  if not tf.io.gfile.isdir(FLAGS.output_dir):
-    tf.io.gfile.makedirs(FLAGS.output_dir)
+  if not tf.gfile.IsDirectory(FLAGS.output_dir):
+    tf.gfile.MkDir(FLAGS.output_dir)
 
   annotations = glob.glob(os.path.join(FLAGS.original_gt_folder,
                                        '*.' + FLAGS.segmentation_format))
@@ -80,4 +80,4 @@ def main(unused_argv):
 
 
 if __name__ == '__main__':
-  tf.compat.v1.app.run()
+  tf.app.run()

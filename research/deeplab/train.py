@@ -239,6 +239,15 @@ def _build_deeplab(iterator, outputs_to_num_classes, ignore_label):
       crop_size=[int(sz) for sz in FLAGS.train_crop_size],
       atrous_rates=FLAGS.atrous_rates,
       output_stride=FLAGS.output_stride)
+  print('========')
+  print('Model options:')
+  for options, value in model_options._asdict().items():
+      print(f'  {options}: {value}')
+  print('========')
+  print('Arguments:')
+  for key in FLAGS.__flags.keys():
+    print('  {}: {}'.format(key, getattr(FLAGS, key)))
+  print('====')
 
   outputs_to_scales_to_logits = model.multi_scale_logits(
       samples[common.IMAGE],
