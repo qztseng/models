@@ -29,6 +29,7 @@ from nets.mobilenet import conv_blocks
 from nets.mobilenet import mobilenet
 from nets.mobilenet import mobilenet_v2
 from nets.mobilenet import mobilenet_v3
+from nets import resnet_v2
 
 slim = contrib_slim
 
@@ -246,6 +247,8 @@ networks_map = {
     'xception_71': xception.xception_71,
     'nas_pnasnet': nas_network.pnasnet,
     'nas_hnasnet': nas_network.hnasnet,
+    'resnet_mod' : resnet_v1_beta.resnet_mod, 
+    'resnet_v2_50': resnet_v2.resnet_v2_50,
 }
 
 
@@ -336,6 +339,8 @@ arg_scopes_map = {
     'xception_71': xception.xception_arg_scope,
     'nas_pnasnet': nas_network.nas_arg_scope,
     'nas_hnasnet': nas_network.nas_arg_scope,
+    'resnet_v2_50': resnet_v2.resnet_arg_scope,
+    'resnet_mod' : resnet_v1_beta.resnet_arg_scope,
 }
 
 # Names for end point features.
@@ -450,6 +455,20 @@ networks_to_feature_maps = {
             16: ['Cell_7'],
         },
     },
+    'resnet_mod': {
+        DECODER_END_POINTS: {
+            2: ['block1/unit_1/lite_bottleneck_v2/conv2'],
+            4: ['block2/unit_1/lite_bottleneck_v2/conv2'],
+            8: ['block3/unit_1/lite_bottleneck_v2/conv2'],
+        },
+    },
+    'resnet_v2_50': {
+        DECODER_END_POINTS: {
+            4: ['block1/unit_2/bottleneck_v2/conv3'],
+            8: ['block2/unit_3/bottleneck_v2/conv3'],
+            16: ['block3/unit_5/bottleneck_v2/conv3'],
+        },
+    },
 }
 
 # A map from feature extractor name to the network name scope used in the
@@ -470,6 +489,8 @@ name_scope = {
     'xception_71': 'xception_71',
     'nas_pnasnet': 'pnasnet',
     'nas_hnasnet': 'hnasnet',
+    'resnet_mod' : 'resnet_mod',
+    'resnet_v2_50' : 'resnet_v2_50',
 }
 
 # Mean pixel value.
@@ -508,6 +529,8 @@ _PREPROCESS_FN = {
     'xception_71': _preprocess_zero_mean_unit_range,
     'nas_pnasnet': _preprocess_zero_mean_unit_range,
     'nas_hnasnet': _preprocess_zero_mean_unit_range,
+    'resnet_mod' : _preprocess_zero_mean_unit_range,
+    'resnet_v2_50' : _preprocess_subtract_imagenet_mean,
 }
 
 

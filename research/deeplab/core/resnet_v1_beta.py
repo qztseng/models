@@ -33,7 +33,8 @@ import tensorflow as tf
 from tensorflow.contrib import slim as contrib_slim
 from deeplab.core import conv2d_ws
 from deeplab.core import utils
-from tensorflow.contrib.slim.nets import resnet_utils
+# from tensorflow.contrib.slim.nets import resnet_utils
+from slim.nets import resnet_utils
 
 slim = contrib_slim
 
@@ -147,6 +148,37 @@ def lite_bottleneck(inputs,
     output = tf.nn.relu(shortcut + residual)
 
     return slim.utils.collect_named_outputs(outputs_collections, sc.name,
+                                            output)
+
+@slim.add_arg_scope
+def lite_bottleneck_v2(inputs, depth, stride, rate=1, unit_rate=1,
+                       outputs_collections=None, scope=None):
+  
+  with tf.variable_scope(scope, 'lite_bottleneck_v2', [inputs]) as sc:
+    depth_in = slim.utils.last_dimension(inputs.get_shape(), min_rank=4)
+    preact = slim.batch_norm(inputs, activation_fn=tf.nn.relu, scope='preact')
+    if depth == depth_in:
+      shortcut = resnet_utils.subsample(inputs, stride, 'shortcut')
+    else:
+      shortcut = slim.conv2d(preact, depth, [1, 1], stride=stride,
+                             normalizer_fn=None, activation_fn=None,
+                             scope='shortcut')
+
+#     residual = slim.conv2d(preact, depth, [1, 1], stride=1,
+#                            scope='conv1')
+    residual = resnet_utils.conv2d_same(preact, depth, 3, 1,
+                                        rate=rate * unit_rate, scope='conv1')
+#     residual = slim.conv2d(residual, depth, [1, 1], stride=1,
+#                            normalizer_fn=None, activation_fn=None,
+#                            scope='conv3')
+    with slim.arg_scope([slim.conv2d], normalizer_fn=None, activation_fn=None):
+        residual = resnet_utils.conv2d_same(residual, depth, 3, stride,
+                                            rate=rate * unit_rate, scope='conv2')
+
+    output = shortcut + residual
+
+    return slim.utils.collect_named_outputs(outputs_collections,
+                                            sc.name,
                                             output)
 
 
@@ -319,6 +351,14 @@ def resnet_v1_small_beta_block(scope, base_depth, num_units, stride):
   return resnet_utils.Block(scope, lite_bottleneck, block_args)
 
 
+def resnet_v2_small_beta_block(scope, base_depth, num_units, stride):
+    """helper for resnet v2"""
+    block_args = []
+    for _ in range(num_units - 1):
+        block_args.append({'depth': base_depth, 'stride': 1, 'unit_rate': 1})
+    block_args.append({'depth': base_depth, 'stride': stride, 'unit_rate': 1})
+    return resnet_utils.Block(scope, lite_bottleneck_v2, block_args)
+
 def resnet_v1_18(inputs,
                  num_classes=None,
                  is_training=None,
@@ -472,6 +512,75 @@ def resnet_v1_18_beta(inputs,
       reuse=reuse,
       scope=scope,
       sync_batch_norm_method=sync_batch_norm_method)
+
+
+def resnet_mod(inputs,
+               num_classes=None,
+               is_training=None,
+               global_pool=False,
+               output_stride=None,
+               multi_grid=None,
+               root_depth_multiplier=0.25,
+               reuse=None,
+               scope='resnet_v1_18',
+               sync_batch_norm_method='None'):
+    """
+    A custom Resnet variant based on v2 preact architecture.
+    """
+    
+    ## define the multi_grid/atrous blocks
+    if multi_grid is None:
+        multi_grid = [1,1]
+    else:
+        if len(multi_grid) != 2:
+          raise ValueError('Expect multi_grid to have length 2.')
+
+    block4_args = []
+    for rate in multi_grid:
+        block4_args.append({'depth': 512, 'stride': 1, 'unit_rate': rate})
+
+    blocks = [
+      resnet_v2_small_beta_block(
+          'block1', base_depth=64, num_units=1, stride=2),
+      resnet_v2_small_beta_block(
+          'block2', base_depth=128, num_units=1, stride=2),
+      resnet_v2_small_beta_block(
+          'block3', base_depth=256, num_units=1, stride=2),
+      resnet_utils.Block('block4', lite_bottleneck_v2, block4_args),
+    ]
+
+    root_block_fn = functools.partial(conv2d_ws.conv2d_same,
+                                      num_outputs=64,
+                                      kernel_size=3,
+                                      stride=1,
+                                      scope='root_conv1')
+
+    batch_norm = utils.get_batch_norm_fn(sync_batch_norm_method)
+    with tf.variable_scope(scope, 'resnet_mod', [inputs], reuse=reuse) as sc:
+        end_points_collection = sc.original_name_scope + '_end_points'
+    with slim.arg_scope([
+        slim.conv2d, conv2d_ws.conv2d, lite_bottleneck_v2, resnet_utils.stack_blocks_dense] 
+        ,outputs_collections=end_points_collection):
+        if is_training is not None:
+            arg_scope = slim.arg_scope([batch_norm], is_training=is_training)
+        else:
+            arg_scope = slim.arg_scope([])
+        with arg_scope:
+            net = inputs
+            if output_stride is not None:
+              if output_stride % 4 != 0:
+                raise ValueError('The output_stride needs to be a multiple of 4.')
+#               output_stride //= 4
+            net = root_block_fn(net)
+#             net = slim.max_pool2d(net, 3, stride=2, padding='SAME', scope='pool1')
+            net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
+            ## add a batchnorm and relu layer since the last conv output don't have them in v2
+            net = slim.batch_norm(net, activation_fn=tf.nn.relu, scope='postnorm')
+            # Convert end_points_collection into a dictionary of end_points.
+            end_points = slim.utils.convert_collection_to_dict(
+                end_points_collection)
+
+            return net, end_points
 
 
 def resnet_v1_50(inputs,
