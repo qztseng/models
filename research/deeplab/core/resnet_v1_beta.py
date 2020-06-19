@@ -164,7 +164,7 @@ def lite_bottleneck_v2(inputs, depth, stride, rate=1, unit_rate=1,
                              normalizer_fn=None, activation_fn=None,
                              scope='shortcut')
 
-#     residual = slim.conv2d(preact, depth, [1, 1], stride=1,
+#     residual = slim.conv2d(preact, depth, 3, stride=1, rate=rate*unit_rate,
 #                            scope='conv1')
     residual = resnet_utils.conv2d_same(preact, depth, 3, 1,
                                         rate=rate * unit_rate, scope='conv1')
@@ -548,39 +548,39 @@ def resnet_mod(inputs,
           'block3', base_depth=256, num_units=1, stride=2),
       resnet_utils.Block('block4', lite_bottleneck_v2, block4_args),
     ]
-
+    
+#     root_block_fn = root_block_fn_for_beta_variant
     root_block_fn = functools.partial(conv2d_ws.conv2d_same,
                                       num_outputs=64,
                                       kernel_size=3,
-                                      stride=1,
+                                      stride=2,
                                       scope='root_conv1')
 
     batch_norm = utils.get_batch_norm_fn(sync_batch_norm_method)
     with tf.variable_scope(scope, 'resnet_mod', [inputs], reuse=reuse) as sc:
         end_points_collection = sc.original_name_scope + '_end_points'
-    with slim.arg_scope([
-        slim.conv2d, conv2d_ws.conv2d, lite_bottleneck_v2, resnet_utils.stack_blocks_dense] 
-        ,outputs_collections=end_points_collection):
-        if is_training is not None:
-            arg_scope = slim.arg_scope([batch_norm], is_training=is_training)
-        else:
-            arg_scope = slim.arg_scope([])
-        with arg_scope:
-            net = inputs
-            if output_stride is not None:
-              if output_stride % 4 != 0:
-                raise ValueError('The output_stride needs to be a multiple of 4.')
-#               output_stride //= 4
-            net = root_block_fn(net)
-#             net = slim.max_pool2d(net, 3, stride=2, padding='SAME', scope='pool1')
-            net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
-            ## add a batchnorm and relu layer since the last conv output don't have them in v2
-            net = slim.batch_norm(net, activation_fn=tf.nn.relu, scope='postnorm')
-            # Convert end_points_collection into a dictionary of end_points.
-            end_points = slim.utils.convert_collection_to_dict(
-                end_points_collection)
-
-            return net, end_points
+        with slim.arg_scope([
+            slim.conv2d, conv2d_ws.conv2d, lite_bottleneck_v2, resnet_utils.stack_blocks_dense] 
+            ,outputs_collections=end_points_collection):
+            if is_training is not None:
+                arg_scope = slim.arg_scope([batch_norm], is_training=is_training)
+            else:
+                arg_scope = slim.arg_scope([])
+            with arg_scope:
+                net = inputs
+                if output_stride is not None:
+                  if output_stride % 4 != 0:
+                    raise ValueError('The output_stride needs to be a multiple of 4.')
+                  output_stride //= 2
+                net = root_block_fn(net)
+    #             net = slim.max_pool2d(net, 3, stride=2, padding='SAME', scope='pool1')
+                net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
+                ## add a batchnorm and relu layer since the last conv output don't have them in v2
+                net = slim.batch_norm(net, activation_fn=tf.nn.relu, scope='postnorm')
+                # Convert end_points_collection into a dictionary of end_points.
+                end_points = slim.utils.convert_collection_to_dict(
+                    end_points_collection)
+                return net, end_points
 
 
 def resnet_v1_50(inputs,

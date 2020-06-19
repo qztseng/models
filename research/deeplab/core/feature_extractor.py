@@ -30,6 +30,7 @@ from nets.mobilenet import mobilenet
 from nets.mobilenet import mobilenet_v2
 from nets.mobilenet import mobilenet_v3
 from nets import resnet_v2
+from slim.nets import resnet_utils
 
 slim = contrib_slim
 
@@ -340,7 +341,7 @@ arg_scopes_map = {
     'nas_pnasnet': nas_network.nas_arg_scope,
     'nas_hnasnet': nas_network.nas_arg_scope,
     'resnet_v2_50': resnet_v2.resnet_arg_scope,
-    'resnet_mod' : resnet_v1_beta.resnet_arg_scope,
+    'resnet_mod' : resnet_utils.resnet_arg_scope,
 }
 
 # Names for end point features.
